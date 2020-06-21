@@ -30,23 +30,26 @@ class Attention(nn.Module):
       self.phi = nn.Sequential(self.phi, nn.MaxPool1d(2))
 
   def forward(self,x):
+    '''
+    Input:
+      x (b, c, l)
+    '''
     batch_size = x.size(0)
-    g_x = self.g(x).view(batch_size, self.out_channels, -1)
-    g_x = g_x.permute(0,2,1)
+    g_x = self.g(x)                     # (b, c_out, l)
+    g_x = g_x.permute(0,2,1)            # (b, l, c_out)
 
-    theta_x = self.theta(x).view(batch_size, self.out_channels, -1)
-    theta_x = theta_x.permute(0,2,1)
+    theta_x = self.theta(x)             # (b, c_out, l)
+    theta_x = theta_x.permute(0,2,1)    # (b, l, c_out)
 
-    phi_x = self.phi(x).view(batch_size, self.out_channels, -1)
+    phi_x = self.phi(x)                 # (b, c_out, l)
 
-    f = torch.matmul(theta_x, phi_x)
+    f = torch.matmul(theta_x, phi_x)    # (b, l, l)
+    N = f.size(-1)                      # l
 
-    N = f.size(-1)
+    y = torch.matmul(f,g_x)/N           # (b, l, c_out)
+    y = y.permute(0,2,1).contiguous()   # (b, c_out, l)
 
-    y = torch.matmul(f,g_x)/N
-    y = y.permute(0,2,1).contiguous()
-
-    W_y = self.W(y)
+    W_y = self.W(y)                     # (b, c, l)
 
     if self.residual:
       output = W_y + x
